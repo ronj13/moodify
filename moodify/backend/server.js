@@ -33,7 +33,8 @@ app.post('/login', (req, res) => {
 
 app.post('/refresh', (req, res) => {
     const { refreshToken } = req.body;
-    
+    console.log('Received refresh token:', refreshToken);
+
     spotifyApi.setRefreshToken(refreshToken);
 
     spotifyApi.refreshAccessToken().then(data => {
