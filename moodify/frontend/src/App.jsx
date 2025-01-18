@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Navbar,
     NavbarBrand,
@@ -14,7 +14,7 @@ import {
     CardBody,
     Input,
 } from '@nextui-org/react';
-import './styles/App.css'; // Updated import path
+import './styles/App.css';
 
 function App() {
     const [mood, setMood] = useState('');
@@ -22,10 +22,63 @@ function App() {
     const [numberOfSongs, setNumberOfSongs] = useState(10);
     const [playlists, setPlaylists] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
 
+    // Check if user logged in 
+    useEffect(() => {
+        const token = localStorage.getItem('accessToken');
+        if (!token) {
+            // Redirect to Spotify Login Page
+            window.location.href = `https://accounts.spotify.com/authorize?client_id=957639a18400425fb949acda676fe622&response_type=code&redirect_uri=http://localhost:5174/callback&scope=playlist-modify-private playlist-modify-public`;
+        }
+    }, []);
+
+    // Handle Spotify callback (extract authorization code)
+    useEffect(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+        if (code) {
+            handleLogin(code);
+        }
+    }, []);
+
+    // Handle login to get access token
+    const handleLogin = async (code) => {
+        try {
+            console.log('Logging in with code:', code)
+            const response = await fetch('http://localhost:3001/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ code }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to authenticate');
+            }
+
+            const data = await response.json();
+            console.log('Login successful. Access token is', data.accessToken)
+            localStorage.setItem('accessToken', data.accessToken);
+            localStorage.setItem('refreshToken', data.refreshToken);
+        } catch (error) {
+            console.error('Login failed:', error);
+            setError('Failed to log in. Please try again.');
+        }
+    };
+
+    // Handle playlist generation
     const handleSubmit = async () => {
         setLoading(true);
+        setError('');
+
         try {
+            const accessToken = localStorage.getItem('accessToken');
+            if (!accessToken) {
+                throw new Error('No access token found. Please log in again.');
+            }
+
             const response = await fetch('http://localhost:3001/create-playlist', {
                 method: 'POST',
                 headers: {
@@ -35,7 +88,7 @@ function App() {
                     mood,
                     language,
                     numberOfSongs,
-                    accessToken: localStorage.getItem('accessToken'),
+                    accessToken,
                 }),
             });
 
@@ -47,40 +100,9 @@ function App() {
             setPlaylists([{ name: `${mood} ${language} Playlist`, url: data.playlistUrl }]);
         } catch (error) {
             console.error('Failed to create playlist:', error);
+            setError(error.message);
         } finally {
             setLoading(false);
-        }
-    };
-
-    // Handle search input change
-    const handleSearchChange = (event) => {
-        setSearchQuery(event.target.value);
-    };
-
-    // Handle search form submission
-    const handleSearchSubmit = async (event) => {
-        event.preventDefault();
-
-        if (!accessToken) {
-            await getAccessToken();
-            return;
-        }
-
-        // Fetch search results from Spotify API
-        try {
-            const response = await fetch(
-                `https://api.spotify.com/v1/search?q=${encodeURIComponent(searchQuery)}&type=track`,
-                {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${accessToken}`,
-                    },
-                }
-            );
-            const data = await response.json();
-            setSearchResults(data.tracks.items);
-        } catch (error) {
-            console.error('Error searching for songs:', error);
         }
     };
 
@@ -163,6 +185,8 @@ function App() {
                     {loading ? 'Generating...' : 'Generate Playlist'}
                 </Button>
 
+                {error && <p className="error-message">{error}</p>}
+
                 {/* Playlist Display */}
                 {playlists.length > 0 && (
                     <div className="playlist-container">
@@ -179,6 +203,15 @@ function App() {
                                     >
                                         Open in Spotify
                                     </Button>
+                                    {/* To Embed Spotify Playlist Preview */}
+                                    <iframe
+                                        src={`https://open.spotify.com/embed/playlist/${playlist.url.split('/').pop()}`}
+                                        width="100%"
+                                        height="380"
+                                        frameBorder="0"
+                                        allow="encrypted-media"
+                                        style={{ marginTop: '20px' }}
+                                    ></iframe>
                                 </CardBody>
                             </Card>
                         ))}
@@ -190,50 +223,3 @@ function App() {
 }
 
 export default App;
-
-
-
-
-// import React, { useState } from 'react';
-// import Navbar from './components/Navbar';
-// import MoodSelector from './components/MoodSelector';
-// import PlaylistDisplay from './components/PlaylistDisplay';
-// import './styles/styles.css';
-
-// function App() {
-//     const [mood, setMood] = useState('');
-//     const [playlists, setPlaylists] = useState([]);
-
-//     const handleMoodChange = (selectedMood) => {
-//         setMood(selectedMood);
-//     };
-
-//     const handleSubmit = async (event) => {
-//         event.preventDefault();
-//         // Simulate fetching playlists based on mood
-//         const mockPlaylists = {
-//             happy: ['Feel Good Beats', 'Chill Vibes', 'Energize'],
-//             relaxed: ['Chill Vibes', 'Feel Good Beats', 'Energize'],
-//             focused: ['Energize', 'Feel Good Beats', 'Chill Vibes'],
-//             energetic: ['Energize', 'Feel Good Beats', 'Chill Vibes'],
-//         };
-
-//         setPlaylists(mockPlaylists[mood] || []);
-//     };
-
-//     return (
-//         <div className="App">
-//             <Navbar />
-//             <div className="content">
-//                 <h1>Select Your Mood</h1>
-//                 <form onSubmit={handleSubmit}>
-//                     <MoodSelector onSelectMood={handleMoodChange} />
-//                     <button type="submit">Get Playlist</button>
-//                 </form>
-//                 <PlaylistDisplay playlists={playlists} />
-//             </div>
-//         </div>
-//     );
-// }
-
-// export default App;
