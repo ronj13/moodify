@@ -9,8 +9,8 @@ app.use(cors());
 app.use(express.json());
 
 const spotifyApi = new SpotifyWebApi({
-    clientId: '957639a18400425fb949acda676fe622',
-    clientSecret: '2302f5464c5a41f2933f556aeb2970f7',
+    clientId: 'c2241fa9aede4b82862d5d85188bd33d',
+    clientSecret: 'fa429d2ff3ca4ad3b64d9a9306ffd756',
     redirectUri: 'http://localhost:5174/callback',
 });
 

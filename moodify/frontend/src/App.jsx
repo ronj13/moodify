@@ -56,7 +56,7 @@ function App() {
     
         if (!token && !code) {
             // Redirect to Spotify Login Page only if there's no token and no code
-            window.location.href = `https://accounts.spotify.com/authorize?client_id=957639a18400425fb949acda676fe622&response_type=code&redirect_uri=http://localhost:5174/callback&scope=playlist-modify-private playlist-modify-public`;
+            window.location.href = `https://accounts.spotify.com/authorize?client_id=c2241fa9aede4b82862d5d85188bd33d&response_type=code&redirect_uri=http://localhost:5174/callback&scope=playlist-modify-private playlist-modify-public`;
         } else if (code && !token) {
             // If there's a code but no token, handle the login
             handleLogin(code);
