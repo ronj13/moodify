@@ -9,31 +9,37 @@ app.use(cors());
 app.use(express.json());
 
 const spotifyApi = new SpotifyWebApi({
-    clientId: 'c2241fa9aede4b82862d5d85188bd33d',
-    clientSecret: 'fa429d2ff3ca4ad3b64d9a9306ffd756',
+    clientId: '957639a18400425fb949acda676fe622',
+    clientSecret: '2302f5464c5a41f2933f556aeb2970f7',
     redirectUri: 'http://localhost:5174/callback',
 });
 
-// // Endpoint to get access token
-// app.post('/login', (req, res) => {
-//     const { code } = req.body;
-//     spotifyApi.authorizationCodeGrant(code).then(data => {
-//         res.json({
-//             accessToken: data.body.access_token,
-//             refreshToken: data.body.refresh_token,
-//             expiresIn: data.body.expires_in,
-//         });
-//     }).catch(err => {
-//         res.status(400).json({ error: 'Failed to authenticate' });
-//     });
-// });
+// Endpoint to get access token
+app.post('/login', (req, res) => {
+    const { code } = req.body;
+    console.log('Received code:', code);
+
+    spotifyApi.authorizationCodeGrant(code).then(data => {
+        console.log('Tokens generated:', data.body);
+        res.json({
+            accessToken: data.body.access_token,
+            refreshToken: data.body.refresh_token,
+            expiresIn: data.body.expires_in,
+        });
+    }).catch(err => {
+        res.status(400).json({ error: 'Failed to authenticate' });
+    });
+});
 
 // Endpoint to refresh the access token
 app.post('/refresh', (req, res) => {
     const { refreshToken } = req.body;
+    console.log('Received refresh token:', refreshToken)
+
     spotifyApi.setRefreshToken(refreshToken);
 
     spotifyApi.refreshAccessToken().then(data => {
+        console.log('Tokens refreshed:', data.body);
         res.json({
             accessToken: data.body.access_token,
             expiresIn: data.body.expires_in,
@@ -78,24 +84,28 @@ const getSimilarArtists = async (artistId, accessToken) => {
 
 // Endpoint to create a playlist based on filters
 app.post('/create-playlist', async (req, res) => {
-    const { mood, language, numberOfSongs, accessToken, selectedArtistId } = req.body;
+    const { mood, language, numberOfSongs, accessToken, selectedArtistId, selectedArtistName } = req.body;
     spotifyApi.setAccessToken(accessToken);
 
     try {
         let tracks = [];
 
-        // Step 1: Fetch tracks for the selected artist
-        if (selectedArtistId) {
-            console.log('Fetching top tracks for selected artist:', selectedArtistId);
-            const topTracksResponse = await spotifyApi.getArtistTopTracks(selectedArtistId, 'US');
-            console.log('Top tracks response:', topTracksResponse.body.tracks);
+        // Step 1: Fetch all tracks linked to the artist using the search API
+        if (selectedArtistId && selectedArtistName) {
+            console.log('Fetching all tracks for selected artist:', selectedArtistName);
 
-            if (topTracksResponse.body.tracks.length > 0) {
-                tracks.push(...topTracksResponse.body.tracks.map(track => track.uri));
-                console.log('Selected artist tracks added:', tracks);
-            } else {
-                console.log('No tracks found for the selected artist.');
-            }
+            // Search for tracks by the artist's name
+            const searchResponse = await spotifyApi.searchTracks(`artist:${selectedArtistName}`, { limit: 50 }); // Fetch up to 50 tracks per request
+            const artistTracks = searchResponse.body.tracks.items;
+
+            // Filter tracks to ensure they are by the selected artist
+            const filteredTracks = artistTracks.filter(track =>
+                track.artists.some(artist => artist.id === selectedArtistId)
+            );
+
+            // Add track URIs to the list
+            tracks.push(...filteredTracks.map(track => track.uri));
+            console.log('Tracks fetched for artist:', tracks.length);
         }
 
         // Step 2: Shuffle and limit the number of tracks
