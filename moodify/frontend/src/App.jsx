@@ -6,6 +6,10 @@ import {
     NavbarContent,
     NavbarItem,
     Link,
+    Dropdown,
+    DropdownTrigger,
+    DropdownMenu,
+    DropdownItem,
     Button as NextUIButton,
     Card,
     CardBody,
@@ -16,7 +20,7 @@ import './styles/App.css';
 function App() {
     const [mood, setMood] = useState(null);
     const [language, setLanguage] = useState(null);
-    const [numberOfSongs, setNumberOfSongs] = useState(10);
+    const [numberOfSongs, setNumberOfSongs] = useState(null);
     const [playlists, setPlaylists] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -42,13 +46,20 @@ function App() {
     // Check if user logged in 
     useEffect(() => {
         const token = localStorage.getItem('accessToken');
-        if (!token) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+    
+        if (!token && !code) {
+            // Redirect to Spotify Login Page only if there's no token and no code
             window.location.href = `https://accounts.spotify.com/authorize?client_id=957639a18400425fb949acda676fe622&response_type=code&redirect_uri=http://localhost:5174/callback&scope=playlist-modify-private playlist-modify-public`;
+        } else if (code && !token) {
+            // If there's a code but no token, handle the login
+            handleLogin(code);
         }
     }, []);
 
     // Handle Spotify callback (extract authorization code)
-    useEffect(() => {
+    useEffect(() => { 
         const urlParams = new URLSearchParams(window.location.search);
         const code = urlParams.get('code');
         if (code) {
@@ -59,6 +70,7 @@ function App() {
     // Handle login to get access token
     const handleLogin = async (code) => {
         try {
+            console.log('Exchanging code for access token:', code);
             const response = await fetch('http://localhost:3001/login', {
                 method: 'POST',
                 headers: {
@@ -145,7 +157,9 @@ function App() {
             }
 
             const data = await response.json();
+            console.log('Login successful. Tokens received:', data);
             localStorage.setItem('accessToken', data.accessToken);
+            localStorage.setItem('refreshToken', data.refreshToken);
 
             // Schedule the next refresh
             setTimeout(() => refreshToken(refreshToken), (data.expiresIn - 60) * 1000); // Refresh 1 minute before expiry
@@ -175,7 +189,8 @@ function App() {
                     language: language.value,
                     numberOfSongs,
                     accessToken,
-                    selectedArtistId: selectedArtist?.id, // Send only the artist ID
+                    selectedArtistId: selectedArtist?.id, // Send the artist ID
+                    selectedArtistName: selectedArtist?.name, // Send the artist
                 }),
             });
     
@@ -244,7 +259,7 @@ function App() {
                     </CardBody>
                 </Card>
 
-                {/* Artist Search */}
+                Artist Search
                 <Card className="filter-card">
                     <CardBody>
                         <h4>Search Artist</h4>
@@ -258,9 +273,9 @@ function App() {
                         {artistResults.length > 0 && (
                             <Dropdown>
                                 <DropdownTrigger>
-                                    <Button variant="bordered" color="primary">
+                                    <NextUIButton variant="bordered" color="primary">
                                         Select Artist
-                                    </Button>
+                                    </NextUIButton>
                                 </DropdownTrigger>
                                 <DropdownMenu
                                     aria-label="Artist Selection"
