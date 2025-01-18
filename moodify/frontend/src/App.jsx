@@ -23,13 +23,16 @@ function App() {
     const [playlists, setPlaylists] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [artistQuery, setArtistQuery] = useState('');
+    const [artistResults, setArtistResults] = useState([]);
+    const [selectedArtist, setSelectedArtist] = useState(null);
 
     // Check if user logged in 
     useEffect(() => {
         const token = localStorage.getItem('accessToken');
         if (!token) {
             // Redirect to Spotify Login Page
-            window.location.href = `https://accounts.spotify.com/authorize?client_id=957639a18400425fb949acda676fe622&response_type=code&redirect_uri=http://localhost:5174/callback&scope=playlist-modify-private playlist-modify-public`;
+            window.location.href = `https://accounts.spotify.com/authorize?client_id=c2241fa9aede4b82862d5d85188bd33d&response_type=code&redirect_uri=http://localhost:5174/callback&scope=playlist-modify-private playlist-modify-public`;
         }
     }, []);
 
@@ -45,7 +48,6 @@ function App() {
     // Handle login to get access token
     const handleLogin = async (code) => {
         try {
-            console.log('Logging in with code:', code)
             const response = await fetch('http://localhost:3001/login', {
                 method: 'POST',
                 headers: {
@@ -59,7 +61,6 @@ function App() {
             }
 
             const data = await response.json();
-            console.log('Login successful. Access token is', data.accessToken)
             localStorage.setItem('accessToken', data.accessToken);
             localStorage.setItem('refreshToken', data.refreshToken);
         } catch (error) {
@@ -68,17 +69,63 @@ function App() {
         }
     };
 
+    // Debounced search for artists
+    useEffect(() => {
+        const delayDebounceFn = setTimeout(async () => {
+            if (artistQuery.trim() === '') {
+                setArtistResults([]);
+                return;
+            }
+
+            try {
+                const accessToken = localStorage.getItem('accessToken');
+                if (!accessToken) {
+                    throw new Error('No access token found. Please log in again.');
+                }
+
+                const response = await fetch('http://localhost:3001/search-artist', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        artistQuery,
+                        accessToken,
+                    }),
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to search for artist');
+                }
+
+                const data = await response.json();
+                setArtistResults(data.artists);
+            } catch (error) {
+                console.error('Failed to search for artist:', error);
+                setError(error.message);
+            }
+        }, 300); // 300ms debounce delay
+
+        return () => clearTimeout(delayDebounceFn);
+    }, [artistQuery]);
+    // Handle artist selection
+    const handleArtistSelect = (artist) => {
+        setSelectedArtist(artist);
+        setArtistQuery(artist.name); // Update the input field with the selected artist's name
+        setArtistResults([]); // Clear the dropdown
+    };
+
     // Handle playlist generation
     const handleSubmit = async () => {
         setLoading(true);
         setError('');
-
+    
         try {
             const accessToken = localStorage.getItem('accessToken');
             if (!accessToken) {
                 throw new Error('No access token found. Please log in again.');
             }
-
+    
             const response = await fetch('http://localhost:3001/create-playlist', {
                 method: 'POST',
                 headers: {
@@ -89,13 +136,14 @@ function App() {
                     language,
                     numberOfSongs,
                     accessToken,
+                    selectedArtistId: selectedArtist?.id, // Send only the artist ID
                 }),
             });
-
+    
             if (!response.ok) {
                 throw new Error('Failed to create playlist');
             }
-
+    
             const data = await response.json();
             setPlaylists([{ name: `${mood} ${language} Playlist`, url: data.playlistUrl }]);
         } catch (error) {
@@ -105,7 +153,7 @@ function App() {
             setLoading(false);
         }
     };
-
+    
     return (
         <div className="App">
             {/* Main Content */}
@@ -116,6 +164,7 @@ function App() {
                 <Card className="filter-card">
                     <CardBody>
                         <h4>Mood</h4>
+                        <div className="dropdown-container">
                         <Dropdown>
                             <DropdownTrigger>
                                 <Button variant="bordered" color="primary">
@@ -132,6 +181,7 @@ function App() {
                                 <DropdownItem key="Energetic">Energetic</DropdownItem>
                             </DropdownMenu>
                         </Dropdown>
+                        </div>
                     </CardBody>
                 </Card>
 
@@ -175,6 +225,43 @@ function App() {
                     </CardBody>
                 </Card>
 
+                {/* Artist Search */}
+                <Card className="filter-card">
+                    <CardBody>
+                        <h4>Search Artist</h4>
+                        <Input
+                            type="text"
+                            value={artistQuery}
+                            onChange={(e) => setArtistQuery(e.target.value)}
+                            label="Artist"
+                            placeholder="Enter artist name"
+                        />
+                        {artistResults.length > 0 && (
+                            <Dropdown>
+                                <DropdownTrigger>
+                                    <Button variant="bordered" color="primary">
+                                        Select Artist
+                                    </Button>
+                                </DropdownTrigger>
+                                <DropdownMenu
+                                    aria-label="Artist Selection"
+                                    onAction={(key) => handleArtistSelect(artistResults[key])}
+                                >
+                                    {artistResults.map((artist, index) => (
+                                        <DropdownItem key={index}>{artist.name}</DropdownItem>
+                                    ))}
+                                </DropdownMenu>
+                            </Dropdown>
+                        )}
+                        {selectedArtist && (
+                            <div className="selected-artist">
+                                <h4>Selected Artist: {selectedArtist.name}</h4>
+                                <img src={selectedArtist.image} alt={selectedArtist.name} />
+                            </div>
+                        )}
+                    </CardBody>
+                </Card>
+
                 {/* Generate Playlist Button */}
                 <Button
                     color="primary"
@@ -203,7 +290,6 @@ function App() {
                                     >
                                         Open in Spotify
                                     </Button>
-                                    {/* To Embed Spotify Playlist Preview */}
                                     <iframe
                                         src={`https://open.spotify.com/embed/playlist/${playlist.url.split('/').pop()}`}
                                         width="100%"

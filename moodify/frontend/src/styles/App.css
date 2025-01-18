@@ -1,65 +1,195 @@
 /* frontend/src/styles/App.css */
 .App {
-  font-family: Arial, sans-serif;
+  font-family: 'Arial', sans-serif;
   text-align: center;
   padding: 20px;
-  background-color: #f4f4f4;
+  background-color: #f8f9fa;
   min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .content {
   max-width: 800px;
+  width: 100%;
   margin: 0 auto;
-  padding: 20px;
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  padding: 30px;
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .title {
-  margin-bottom: 20px;
-  font-size: 2em;
+  margin-bottom: 30px;
+  font-size: 2.5em;
   color: #333;
+  font-weight: 600;
 }
 
 .filter-card {
   margin-bottom: 20px;
   padding: 20px;
   text-align: left;
-  background-color: #f9f9f9;
+  background-color: #ffffff;
   border-radius: 8px;
-  border: 1px solid #ddd;
+  border: 1px solid #e0e0e0;
+  transition: box-shadow 0.3s ease;
+}
+
+.filter-card:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.filter-card h4 {
+  margin-bottom: 15px;
+  font-size: 1.2em;
+  color: #555;
+  font-weight: 500;
+}
+
+.dropdown-container {
+  position: relative;
+  width: 100%;
+}
+
+.dropdown-menu {
+  position: static; /* Ensure dropdown is part of the document flow */
+  width: 100%;
+  margin-top: 10px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background-color: #ffffff;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  z-index: 1;
+}
+
+.dropdown-item {
+  padding: 10px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.dropdown-item:hover {
+  background-color: #f1f1f1;
 }
 
 .generate-button {
-  margin-top: 20px;
+  margin-top: 30px;
   margin-bottom: 40px;
   width: 100%;
-  padding: 10px;
+  padding: 12px;
   font-size: 1.2em;
+  font-weight: 600;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.generate-button:hover {
+  background-color: #0056b3;
+}
+
+.generate-button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
 }
 
 .playlist-container {
-  margin-top: 20px;
+  margin-top: 30px;
 }
 
 .playlist-card {
   margin-bottom: 20px;
   padding: 20px;
   text-align: left;
-  background-color: #f9f9f9;
+  background-color: #ffffff;
   border-radius: 8px;
-  border: 1px solid #ddd;
+  border: 1px solid #e0e0e0;
+  transition: box-shadow 0.3s ease;
+}
+
+.playlist-card:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .playlist-card h4 {
-  margin-bottom: 10px;
+  margin-bottom: 15px;
   font-size: 1.5em;
   color: #333;
+  font-weight: 600;
 }
 
 .playlist-card button {
   width: 100%;
   padding: 10px;
   font-size: 1em;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.playlist-card button:hover {
+  background-color: #218838;
+}
+
+.error-message {
+  margin-top: 20px;
+  color: #dc3545;
+  font-size: 1em;
+  font-weight: 500;
+}
+
+.selected-artist {
+  margin-top: 20px;
+  padding: 15px;
+  background-color: #f1f1f1;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.selected-artist h4 {
+  margin-bottom: 10px;
+  font-size: 1.2em;
+  color: #333;
+  font-weight: 500;
+}
+
+.selected-artist img {
+  width: 100px;
+  height: 100px;
+  border-radius: 8px;
+  margin-top: 10px;
+}
+
+.similar-artists {
+  margin-top: 20px;
+  padding: 15px;
+  background-color: #f1f1f1;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.similar-artists h4 {
+  margin-bottom: 10px;
+  font-size: 1.2em;
+  color: #333;
+  font-weight: 500;
+}
+
+.similar-artists ul {
+  list-style-type: none;
+  padding: 0;
+}
+
+.similar-artists li {
+  margin-bottom: 8px;
+  font-size: 1em;
+  color: #555;
 }
