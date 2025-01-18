@@ -35,6 +35,9 @@ function App() {
         { value: 'Random', label: 'Random' },
         { value: 'Mix', label: 'Mix' },
     ];
+    const [artistQuery, setArtistQuery] = useState('');
+    const [artistResults, setArtistResults] = useState([]);
+    const [selectedArtist, setSelectedArtist] = useState(null);
 
     // Check if user logged in 
     useEffect(() => {
@@ -80,6 +83,52 @@ function App() {
         }
     };
 
+    // Debounced search for artists
+    useEffect(() => {
+        const delayDebounceFn = setTimeout(async () => {
+            if (artistQuery.trim() === '') {
+                setArtistResults([]);
+                return;
+            }
+
+            try {
+                const accessToken = localStorage.getItem('accessToken');
+                if (!accessToken) {
+                    throw new Error('No access token found. Please log in again.');
+                }
+
+                const response = await fetch('http://localhost:3001/search-artist', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        artistQuery,
+                        accessToken,
+                    }),
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to search for artist');
+                }
+
+                const data = await response.json();
+                setArtistResults(data.artists);
+            } catch (error) {
+                console.error('Failed to search for artist:', error);
+                setError(error.message);
+            }
+        }, 300); // 300ms debounce delay
+
+        return () => clearTimeout(delayDebounceFn);
+    }, [artistQuery]);
+    // Handle artist selection
+    const handleArtistSelect = (artist) => {
+        setSelectedArtist(artist);
+        setArtistQuery(artist.name); // Update the input field with the selected artist's name
+        setArtistResults([]); // Clear the dropdown
+    };
+
     // Refresh the access token
     const refreshToken = async (refreshToken) => {
         try {
@@ -109,13 +158,13 @@ function App() {
     const handleSubmit = async () => {
         setLoading(true);
         setError('');
-
+    
         try {
             const accessToken = localStorage.getItem('accessToken');
             if (!accessToken) {
                 throw new Error('No access token found. Please log in again.');
             }
-
+    
             const response = await fetch('http://localhost:3001/create-playlist', {
                 method: 'POST',
                 headers: {
@@ -126,13 +175,14 @@ function App() {
                     language: language.value,
                     numberOfSongs,
                     accessToken,
+                    selectedArtistId: selectedArtist?.id, // Send only the artist ID
                 }),
             });
-
+    
             if (!response.ok) {
                 throw new Error('Failed to create playlist');
             }
-
+    
             const data = await response.json();
             setPlaylists([{ name: `${mood.value} ${language.value} Playlist`, url: data.playlistUrl }]);
         } catch (error) {
@@ -142,7 +192,7 @@ function App() {
             setLoading(false);
         }
     };
-
+    
     return (
         <div className="App">
             <div className="content">
@@ -191,6 +241,43 @@ function App() {
                             label="Songs"
                             placeholder="Enter number of songs"
                         />
+                    </CardBody>
+                </Card>
+
+                {/* Artist Search */}
+                <Card className="filter-card">
+                    <CardBody>
+                        <h4>Search Artist</h4>
+                        <Input
+                            type="text"
+                            value={artistQuery}
+                            onChange={(e) => setArtistQuery(e.target.value)}
+                            label="Artist"
+                            placeholder="Enter artist name"
+                        />
+                        {artistResults.length > 0 && (
+                            <Dropdown>
+                                <DropdownTrigger>
+                                    <Button variant="bordered" color="primary">
+                                        Select Artist
+                                    </Button>
+                                </DropdownTrigger>
+                                <DropdownMenu
+                                    aria-label="Artist Selection"
+                                    onAction={(key) => handleArtistSelect(artistResults[key])}
+                                >
+                                    {artistResults.map((artist, index) => (
+                                        <DropdownItem key={index}>{artist.name}</DropdownItem>
+                                    ))}
+                                </DropdownMenu>
+                            </Dropdown>
+                        )}
+                        {selectedArtist && (
+                            <div className="selected-artist">
+                                <h4>Selected Artist: {selectedArtist.name}</h4>
+                                <img src={selectedArtist.image} alt={selectedArtist.name} />
+                            </div>
+                        )}
                     </CardBody>
                 </Card>
 
