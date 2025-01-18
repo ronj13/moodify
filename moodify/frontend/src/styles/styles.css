@@ -1,138 +1,40 @@
-/* styles.css */
+/* frontend/src/styles/styles.css */
 /* Reset and Global Styles */
 html, body {
-    margin: 0;
-    padding: 0;
-    overflow-x: hidden;
-    font-family: Arial, sans-serif;
-    background-color: #f4f4f4;
-  }
-  
-  #root {
-    max-width: 100%;
-    margin: 0;
-    padding-bottom: 2rem;
-    text-align: center;
-  }
-  
-  /* Logo Styles */
-  .logo {
-    height: 6em;
-    padding: 1.5em;
-    will-change: filter;
-    transition: filter 300ms;
-  }
-  
-  .logo:hover {
-    filter: drop-shadow(0 0 2em #646cffaa);
-  }
-  
-  .logo.react:hover {
-    filter: drop-shadow(0 0 2em #61dafbaa);
-  }
-  
-  @keyframes logo-spin {
-    from {
-      transform: rotate(0deg);
-    }
-    to {
-      transform: rotate(360deg);
-    }
-  }
-  
-  @media (prefers-reduced-motion: no-preference) {
-    a:nth-of-type(2) .logo {
-      animation: logo-spin infinite 20s linear;
-    }
-  }
-  
-  /* Navbar Styles */
-  nav {
-    background: black;
-    border-bottom: 2px solid red;
-    color: white;
-    position: sticky;
-    top: 0;
-    z-index: 1000;
-    height: 60px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 16px;
-    width: 100%;
-    margin: 0;
-    box-sizing: border-box;
-  }
-  
-  .navbar-brand {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  
-  .navbar-brand p {
-    font-weight: bold;
-    font-size: 18px;
-    margin: 0;
-    color: white;
-  }
-  
-  /* Content Styles */
-  .content {
-    padding: 2rem;
-    text-align: center;
-    margin-top: 60px;
-  }
-  
-  .card {
-    padding: 2em;
-  }
-  
-  .read-the-docs {
-    color: #888;
-  }
-  
-  /* Form Styles */
-  h1 {
-    margin-bottom: 1rem;
-  }
-  
-  form {
-    margin-bottom: 2rem;
-  }
-  
-  select, button {
-    padding: 0.5rem;
-    margin: 0.5rem;
-    font-size: 1rem;
-  }
-  
-  /* Playlist Styles */
-  .playlists {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-  
-  .playlist {
-    background-color: white;
-    margin: 0.5rem 0;
-    padding: 1rem;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    width: 80%;
-    max-width: 400px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  
-  .playlist a {
-    text-decoration: none;
-    color: #1db954;
-    font-weight: bold;
-  }
-  
-  .playlist a:hover {
-    text-decoration: underline;
-  }
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  font-family: Arial, sans-serif;
+  background-color: #f4f4f4;
+}
+
+/* Navbar Styles */
+nav {
+  background: black;
+  border-bottom: 2px solid red;
+  color: white;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  width: 100%;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+.navbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.navbar-brand p {
+  font-weight: bold;
+  font-size: 18px;
+  margin: 0;
+  color: white;
+}

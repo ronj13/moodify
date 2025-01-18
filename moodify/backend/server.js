@@ -1,89 +1,139 @@
 const express = require('express');
-const querystring = require('querystring');
 const cors = require('cors');
-require('dotenv').config();
-
+const SpotifyWebApi = require('spotify-web-api-node');
+const fetch = require('node-fetch'); // Import node-fetch
 const app = express();
-const port = 8888;
+const PORT = 3001;
 
 app.use(cors());
 app.use(express.json());
 
-// Environment variables
-const client_id = process.env.SPOTIFY_CLIENT_ID;
-const client_secret = process.env.SPOTIFY_CLIENT_SECRET;
-const redirect_uri = process.env.REDIRECT_URI;
+const spotifyApi = new SpotifyWebApi({
+    clientId: 'c2241fa9aede4b82862d5d85188bd33d',
+    clientSecret: 'fa429d2ff3ca4ad3b64d9a9306ffd756',
+    redirectUri: 'http://localhost:5174/callback',
+});
 
-// Callback endpoint
-app.get('/callback', async (req, res) => {
-    const code = req.query.code || null;
-    const state = req.query.state || null;
+// // Endpoint to get access token
+// app.post('/login', (req, res) => {
+//     const { code } = req.body;
+//     spotifyApi.authorizationCodeGrant(code).then(data => {
+//         res.json({
+//             accessToken: data.body.access_token,
+//             refreshToken: data.body.refresh_token,
+//             expiresIn: data.body.expires_in,
+//         });
+//     }).catch(err => {
+//         res.status(400).json({ error: 'Failed to authenticate' });
+//     });
+// });
 
-    if (state === null) {
-        res.redirect('/#' +
-            querystring.stringify({
-                error: 'state_mismatch'
-            }));
-        return;
-    }
+// Endpoint to refresh the access token
+app.post('/refresh', (req, res) => {
+    const { refreshToken } = req.body;
+    spotifyApi.setRefreshToken(refreshToken);
+
+    spotifyApi.refreshAccessToken().then(data => {
+        res.json({
+            accessToken: data.body.access_token,
+            expiresIn: data.body.expires_in,
+        });
+    }).catch(err => {
+        res.status(400).json({ error: 'Failed to refresh token' });
+    });
+});
+
+// Endpoint to search for an artist
+app.post('/search-artist', async (req, res) => {
+    const { artistQuery, accessToken } = req.body;
 
     try {
-        const response = await fetch('https://accounts.spotify.com/api/token', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'Authorization': 'Basic ' + Buffer.from(client_id + ':' + client_secret).toString('base64')
-            },
-            body: querystring.stringify({
-                code: code,
-                redirect_uri: redirect_uri,
-                grant_type: 'authorization_code'
-            })
-        });
+        // Set the access token for the Spotify API
+        spotifyApi.setAccessToken(accessToken);
 
-        if (!response.ok) {
-            throw new Error('Token request failed');
-        }
+        // Search for artists using the Spotify API
+        const searchResponse = await spotifyApi.searchArtists(artistQuery, { limit: 5 });
 
-        const data = await response.json();
-        res.redirect(`${process.env.FRONTEND_URI}/?` +
-            querystring.stringify({
-                access_token: data.access_token,
-                refresh_token: data.refresh_token
-            }));
-    } catch (error) {
-        res.redirect('/#' +
-            querystring.stringify({
-                error: 'invalid_token'
-            }));
+        // Extract artist data from the response
+        const artists = searchResponse.body.artists.items.map(artist => ({
+            id: artist.id,
+            name: artist.name,
+            image: artist.images[0]?.url, // Use the first image if available
+        }));
+
+        // Send the artist data back to the frontend
+        res.json({ artists });
+    } catch (err) {
+        console.error('Error searching for artist:', err);
+        res.status(500).json({ error: 'Failed to search for artist', details: err.message });
     }
 });
 
-// Generate random string for state parameter
-const generateRandomString = (length) => {
-    let text = '';
-    const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    for (let i = 0; i < length; i++) {
-        text += possible.charAt(Math.floor(Math.random() * possible.length));
-    }
-    return text;
+// Function to fetch similar artists
+const getSimilarArtists = async (artistId, accessToken) => {
+    spotifyApi.setAccessToken(accessToken);
+    const response = await spotifyApi.getArtistRelatedArtists(artistId);
+    return response.body.artists.map(artist => artist.id);
 };
 
-// Login endpoint
-app.get('/login', (req, res) => {
-    const state = generateRandomString(16);
-    const scope = 'user-read-private user-read-email playlist-read-private';
+// Endpoint to create a playlist based on filters
+app.post('/create-playlist', async (req, res) => {
+    const { mood, language, numberOfSongs, accessToken, selectedArtistId } = req.body;
+    spotifyApi.setAccessToken(accessToken);
 
-    res.redirect('https://accounts.spotify.com/authorize?' +
-        querystring.stringify({
-            response_type: 'code',
-            client_id: client_id,
-            scope: scope,
-            redirect_uri: redirect_uri,
-            state: state
-        }));
+    try {
+        let tracks = [];
+
+        // Step 1: Fetch tracks for the selected artist
+        if (selectedArtistId) {
+            console.log('Fetching top tracks for selected artist:', selectedArtistId);
+            const topTracksResponse = await spotifyApi.getArtistTopTracks(selectedArtistId, 'US');
+            console.log('Top tracks response:', topTracksResponse.body.tracks);
+
+            if (topTracksResponse.body.tracks.length > 0) {
+                tracks.push(...topTracksResponse.body.tracks.map(track => track.uri));
+                console.log('Selected artist tracks added:', tracks);
+            } else {
+                console.log('No tracks found for the selected artist.');
+            }
+        }
+
+        // Step 2: Shuffle and limit the number of tracks
+        tracks = shuffleArray(tracks).slice(0, numberOfSongs);
+        console.log('Final tracks to add to playlist:', tracks);
+
+        // Step 3: Create a new playlist
+        const playlistName = `${mood} ${language} Playlist`; // Customize playlist name
+        const playlistResponse = await spotifyApi.createPlaylist(playlistName, {
+            description: `A ${mood} ${language} playlist generated by Moodify.`,
+            public: false, // Make the playlist private
+        });
+
+        // Step 4: Add tracks to the playlist
+        const playlistId = playlistResponse.body.id;
+        await spotifyApi.addTracksToPlaylist(playlistId, tracks);
+
+        res.json({
+            playlistUrl: playlistResponse.body.external_urls.spotify,
+        });
+    } catch (err) {
+        console.error('Error creating playlist:', err);
+        res.status(500).json({ error: 'Failed to create playlist', details: err.message });
+    }
 });
 
-app.listen(port, () => {
-    console.log(`Server is running on port ${port}`);
+// Helper function to shuffle an array
+function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+}
+
+
+
+
+app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
 });

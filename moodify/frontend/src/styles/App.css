@@ -1,0 +1,142 @@
+/* frontend/src/styles/App.css */
+.App {
+  font-family: 'Arial', sans-serif;
+  text-align: center;
+  padding: 20px;
+  background: linear-gradient(135deg, #f5f7fa, #c3cfe2);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.content {
+  max-width: 800px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 30px;
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.title {
+  margin-bottom: 30px;
+  font-size: 2.5em;
+  color: #333;
+  font-weight: bold;
+}
+
+.filter-card {
+  margin-bottom: 20px;
+  padding: 20px;
+  text-align: left;
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.filter-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+.generate-button {
+  margin-top: 30px;
+  margin-bottom: 40px;
+  width: 100%;
+  padding: 12px;
+  font-size: 1.2em;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.generate-button:hover {
+  background-color: #0056b3;
+}
+
+.generate-button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+.playlist-container {
+  margin-top: 30px;
+}
+
+.playlist-card {
+  margin-bottom: 20px;
+  padding: 20px;
+  text-align: left;
+  background-color: #ffffff;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  transition: box-shadow 0.3s ease;
+}
+
+.playlist-card:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.playlist-card h4 {
+  margin-bottom: 15px;
+  font-size: 1.5em;
+  color: #333;
+  font-weight: 600;
+}
+
+.playlist-card button {
+  width: 100%;
+  padding: 10px;
+  font-size: 1em;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.playlist-card button:hover {
+  background-color: #0056b3;
+}
+
+/* React Select Styles */
+.react-select-container {
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+.react-select__control {
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  box-shadow: none;
+}
+
+.react-select__control--is-focused {
+  border-color: #007bff;
+  box-shadow: 0 0 0 1px #007bff;
+}
+
+.react-select__menu {
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.react-select__option {
+  padding: 10px 20px;
+}
+
+.react-select__option--is-focused {
+  background-color: #f4f4f4;
+}
+
+.react-select__option--is-selected {
+  background-color: #007bff;
+  color: white;
+}
