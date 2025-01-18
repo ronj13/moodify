@@ -52,6 +52,38 @@ function App() {
         }
     };
 
+    // Handle search input change
+    const handleSearchChange = (event) => {
+        setSearchQuery(event.target.value);
+    };
+
+    // Handle search form submission
+    const handleSearchSubmit = async (event) => {
+        event.preventDefault();
+
+        if (!accessToken) {
+            await getAccessToken();
+            return;
+        }
+
+        // Fetch search results from Spotify API
+        try {
+            const response = await fetch(
+                `https://api.spotify.com/v1/search?q=${encodeURIComponent(searchQuery)}&type=track`,
+                {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                    },
+                }
+            );
+            const data = await response.json();
+            setSearchResults(data.tracks.items);
+        } catch (error) {
+            console.error('Error searching for songs:', error);
+        }
+    };
+
     return (
         <div className="App">
             {/* Main Content */}
