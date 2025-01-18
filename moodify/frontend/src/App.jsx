@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import Navbar from './components/Navbar';
 // App.jsx
-import React, { useState } from 'react';
 import NavbarComponent from './components/Navbar';
 import MoodSelector from './components/MoodSelector';
 import PlaylistDisplay from './components/PlaylistDisplay';
