@@ -88,7 +88,7 @@ function App() {
 
     return (
         <div className="App">
-            <Navbar />
+            <NavbarComponent />
             <div className="content">
                 <h1>Select Your Mood</h1>
                 
