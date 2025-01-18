@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Navbar from './components/Navbar';
 import MoodSelector from './components/MoodSelector';
 import PlaylistDisplay from './components/PlaylistDisplay';
+import './styles/styles.css';
 
 function App() {
     const [mood, setMood] = useState('');
@@ -14,12 +15,11 @@ function App() {
     const handleSubmit = async (event) => {
         event.preventDefault();
         // Simulate fetching playlists based on mood
-        // Replace this with actual API call to Spotify
         const mockPlaylists = {
-            happy: ['Happy Hits', 'Feel Good Pop', 'Summer Vibes'],
-            sad: ['Sad Songs', 'Heartbreak Hits', 'Melancholy Melodies'],
-            relaxed: ['Chill Vibes', 'Lo-fi Beats', 'Relax & Unwind'],
-            focused: ['Deep Focus', 'Productive Morning', 'Concentration Flow'],
+            happy: ['Feel Good Beats', 'Chill Vibes', 'Energize'],
+            relaxed: ['Chill Vibes', 'Feel Good Beats', 'Energize'],
+            focused: ['Energize', 'Feel Good Beats', 'Chill Vibes'],
+            energetic: ['Energize', 'Feel Good Beats', 'Chill Vibes'],
         };
 
         setPlaylists(mockPlaylists[mood] || []);
@@ -28,13 +28,10 @@ function App() {
     return (
         <div className="App">
             <Navbar />
-            <div style={{ padding: '1rem' }}>
-                <h1>Moodify</h1>
+            <div className="content">
+                <h1>Select Your Mood</h1>
                 <form onSubmit={handleSubmit}>
-                    <label>
-                        Select your mood:
-                        <MoodSelector onSelectMood={handleMoodChange} />
-                    </label>
+                    <MoodSelector onSelectMood={handleMoodChange} />
                     <button type="submit">Get Playlist</button>
                 </form>
                 <PlaylistDisplay playlists={playlists} />
