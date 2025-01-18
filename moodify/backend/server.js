@@ -16,17 +16,32 @@ const spotifyApi = new SpotifyWebApi({
     redirectUri: 'http://localhost:5174/callback',
 });
 
-// Endpoint to get access token
-app.post('/login', (req, res) => {
-    const { code } = req.body;
-    spotifyApi.authorizationCodeGrant(code).then(data => {
+// // Endpoint to get access token
+// app.post('/login', (req, res) => {
+//     const { code } = req.body;
+//     spotifyApi.authorizationCodeGrant(code).then(data => {
+//         res.json({
+//             accessToken: data.body.access_token,
+//             refreshToken: data.body.refresh_token,
+//             expiresIn: data.body.expires_in,
+//         });
+//     }).catch(err => {
+//         res.status(400).json({ error: 'Failed to authenticate' });
+//     });
+// });
+
+// Endpoint to refresh the access token
+app.post('/refresh', (req, res) => {
+    const { refreshToken } = req.body;
+    spotifyApi.setRefreshToken(refreshToken);
+
+    spotifyApi.refreshAccessToken().then(data => {
         res.json({
             accessToken: data.body.access_token,
-            refreshToken: data.body.refresh_token,
             expiresIn: data.body.expires_in,
         });
     }).catch(err => {
-        res.status(400).json({ error: 'Failed to authenticate' });
+        res.status(400).json({ error: 'Failed to refresh token' });
     });
 });
 

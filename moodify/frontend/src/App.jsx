@@ -1,15 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import Select from 'react-select';
 import {
     Navbar,
     NavbarBrand,
     NavbarContent,
     NavbarItem,
     Link,
-    Button,
-    Dropdown,
-    DropdownTrigger,
-    DropdownMenu,
-    DropdownItem,
+    Button as NextUIButton,
     Card,
     CardBody,
     Input,
@@ -17,18 +14,32 @@ import {
 import './styles/App.css';
 
 function App() {
-    const [mood, setMood] = useState('');
-    const [language, setLanguage] = useState('');
+    const [mood, setMood] = useState(null);
+    const [language, setLanguage] = useState(null);
     const [numberOfSongs, setNumberOfSongs] = useState(10);
     const [playlists, setPlaylists] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
+    const moodOptions = [
+        { value: 'Happy', label: 'Happy' },
+        { value: 'Sad', label: 'Sad' },
+        { value: 'Relaxed', label: 'Relaxed' },
+        { value: 'Energetic', label: 'Energetic' },
+    ];
+
+    const languageOptions = [
+        { value: 'English', label: 'English' },
+        { value: 'Mandarin', label: 'Mandarin' },
+        { value: 'Korean', label: 'Korean' },
+        { value: 'Random', label: 'Random' },
+        { value: 'Mix', label: 'Mix' },
+    ];
+
     // Check if user logged in 
     useEffect(() => {
         const token = localStorage.getItem('accessToken');
         if (!token) {
-            // Redirect to Spotify Login Page
             window.location.href = `https://accounts.spotify.com/authorize?client_id=957639a18400425fb949acda676fe622&response_type=code&redirect_uri=http://localhost:5174/callback&scope=playlist-modify-private playlist-modify-public`;
         }
     }, []);
@@ -45,7 +56,6 @@ function App() {
     // Handle login to get access token
     const handleLogin = async (code) => {
         try {
-            console.log('Logging in with code:', code)
             const response = await fetch('http://localhost:3001/login', {
                 method: 'POST',
                 headers: {
@@ -59,15 +69,42 @@ function App() {
             }
 
             const data = await response.json();
-            console.log('Login successful. Access token is', data.accessToken)
             localStorage.setItem('accessToken', data.accessToken);
             localStorage.setItem('refreshToken', data.refreshToken);
+
+            // Schedule token refresh before it expires
+            setTimeout(() => refreshToken(data.refreshToken), (data.expiresIn - 60) * 1000); // Refresh 1 minute before expiry
         } catch (error) {
             console.error('Login failed:', error);
             setError('Failed to log in. Please try again.');
         }
     };
 
+    // Refresh the access token
+    const refreshToken = async (refreshToken) => {
+        try {
+            const response = await fetch('http://localhost:3001/refresh', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ refreshToken }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to refresh token');
+            }
+
+            const data = await response.json();
+            localStorage.setItem('accessToken', data.accessToken);
+
+            // Schedule the next refresh
+            setTimeout(() => refreshToken(refreshToken), (data.expiresIn - 60) * 1000); // Refresh 1 minute before expiry
+        } catch (error) {
+            console.error('Failed to refresh token:', error);
+            setError('Failed to refresh token. Please log in again.');
+        }
+    };
     // Handle playlist generation
     const handleSubmit = async () => {
         setLoading(true);
@@ -85,8 +122,8 @@ function App() {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    mood,
-                    language,
+                    mood: mood.value,
+                    language: language.value,
                     numberOfSongs,
                     accessToken,
                 }),
@@ -97,7 +134,7 @@ function App() {
             }
 
             const data = await response.json();
-            setPlaylists([{ name: `${mood} ${language} Playlist`, url: data.playlistUrl }]);
+            setPlaylists([{ name: `${mood.value} ${language.value} Playlist`, url: data.playlistUrl }]);
         } catch (error) {
             console.error('Failed to create playlist:', error);
             setError(error.message);
@@ -108,7 +145,6 @@ function App() {
 
     return (
         <div className="App">
-            {/* Main Content */}
             <div className="content">
                 <h1 className="title">Select Your Mood</h1>
 
@@ -116,22 +152,14 @@ function App() {
                 <Card className="filter-card">
                     <CardBody>
                         <h4>Mood</h4>
-                        <Dropdown>
-                            <DropdownTrigger>
-                                <Button variant="bordered" color="primary">
-                                    {mood || 'Choose a Mood'}
-                                </Button>
-                            </DropdownTrigger>
-                            <DropdownMenu
-                                aria-label="Mood Selection"
-                                onAction={(key) => setMood(key)}
-                            >
-                                <DropdownItem key="Happy">Happy</DropdownItem>
-                                <DropdownItem key="Sad">Sad</DropdownItem>
-                                <DropdownItem key="Relaxed">Relaxed</DropdownItem>
-                                <DropdownItem key="Energetic">Energetic</DropdownItem>
-                            </DropdownMenu>
-                        </Dropdown>
+                        <Select
+                            options={moodOptions}
+                            value={mood}
+                            onChange={setMood}
+                            placeholder="Choose a Mood"
+                            className="react-select-container"
+                            classNamePrefix="react-select"
+                        />
                     </CardBody>
                 </Card>
 
@@ -139,23 +167,14 @@ function App() {
                 <Card className="filter-card">
                     <CardBody>
                         <h4>Language</h4>
-                        <Dropdown>
-                            <DropdownTrigger>
-                                <Button variant="bordered" color="primary">
-                                    {language || 'Choose a Language'}
-                                </Button>
-                            </DropdownTrigger>
-                            <DropdownMenu
-                                aria-label="Language Selection"
-                                onAction={(key) => setLanguage(key)}
-                            >
-                                <DropdownItem key="English">English</DropdownItem>
-                                <DropdownItem key="Mandarin">Mandarin</DropdownItem>
-                                <DropdownItem key="Korean">Korean</DropdownItem>
-                                <DropdownItem key="Random">Random</DropdownItem>
-                                <DropdownItem key="Mix">Mix</DropdownItem>
-                            </DropdownMenu>
-                        </Dropdown>
+                        <Select
+                            options={languageOptions}
+                            value={language}
+                            onChange={setLanguage}
+                            placeholder="Choose a Language"
+                            className="react-select-container"
+                            classNamePrefix="react-select"
+                        />
                     </CardBody>
                 </Card>
 
@@ -176,14 +195,14 @@ function App() {
                 </Card>
 
                 {/* Generate Playlist Button */}
-                <Button
+                <NextUIButton
                     color="primary"
                     onClick={handleSubmit}
                     disabled={!mood || !language || loading}
                     className="generate-button"
                 >
                     {loading ? 'Generating...' : 'Generate Playlist'}
-                </Button>
+                </NextUIButton>
 
                 {error && <p className="error-message">{error}</p>}
 
@@ -195,15 +214,14 @@ function App() {
                             <Card key={index} className="playlist-card">
                                 <CardBody>
                                     <h4>{playlist.name}</h4>
-                                    <Button
+                                    <NextUIButton
                                         color="primary"
                                         as="a"
                                         href={playlist.url}
                                         target="_blank"
                                     >
                                         Open in Spotify
-                                    </Button>
-                                    {/* To Embed Spotify Playlist Preview */}
+                                    </NextUIButton>
                                     <iframe
                                         src={`https://open.spotify.com/embed/playlist/${playlist.url.split('/').pop()}`}
                                         width="100%"
