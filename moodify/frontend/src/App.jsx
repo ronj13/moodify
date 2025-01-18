@@ -1,35 +1,43 @@
 import React, { useState } from 'react';
+import Navbar from './components/Navbar';
+import MoodSelector from './components/MoodSelector';
+import PlaylistDisplay from './components/PlaylistDisplay';
+import './styles/styles.css';
 
 function App() {
     const [mood, setMood] = useState('');
+    const [playlists, setPlaylists] = useState([]);
 
-    const handleMoodChange = (event) => {
-        setMood(event.target.value);
+    const handleMoodChange = (selectedMood) => {
+        setMood(selectedMood);
     };
 
     const handleSubmit = async (event) => {
         event.preventDefault();
-        // Fetch playlist based on mood
-        // You will integrate the Spotify API here
+        // Simulate fetching playlists based on mood
+        const mockPlaylists = {
+            happy: ['Feel Good Beats', 'Chill Vibes', 'Energize'],
+            relaxed: ['Chill Vibes', 'Feel Good Beats', 'Energize'],
+            focused: ['Energize', 'Feel Good Beats', 'Chill Vibes'],
+            energetic: ['Energize', 'Feel Good Beats', 'Chill Vibes'],
+        };
+
+        setPlaylists(mockPlaylists[mood] || []);
     };
 
     return (
         <div className="App">
-            <h1>Moodify</h1>
-            <form onSubmit={handleSubmit}>
-                <label>
-                    Select your mood:
-                    <select value={mood} onChange={handleMoodChange}>
-                        <option value="happy">Happy</option>
-                        <option value="sad">Sad</option>
-                        <option value="relaxed">Relaxed</option>
-                        <option value="focused">Focused</option>
-                    </select>
-                </label>
-                <button type="submit">Get Playlist</button>
-            </form>
+            <Navbar />
+            <div className="content">
+                <h1>Select Your Mood</h1>
+                <form onSubmit={handleSubmit}>
+                    <MoodSelector onSelectMood={handleMoodChange} />
+                    <button type="submit">Get Playlist</button>
+                </form>
+                <PlaylistDisplay playlists={playlists} />
+            </div>
         </div>
     );
 }
 
-export default App; <a href=""></a>
+export default App;
