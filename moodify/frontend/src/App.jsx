@@ -48,15 +48,34 @@ function App() {
     const [artistResults, setArtistResults] = useState([]);
     const [selectedArtist, setSelectedArtist] = useState(null);
 
+    const checkAndRefreshToken = async () => {
+        const accessToken = localStorage.getItem('accessToken');
+        const refreshToken = localStorage.getItem('refreshToken');
+
+        if (!accessToken || !refreshToken) {
+            throw new Error('No access token or refresh token found. Please log in again.');
+        }
+
+        // Check if the token is expired (you can store the expiry time in localStorage)
+        const expiryTime = localStorage.getItem('tokenExpiry');
+        if (expiryTime && Date.now() > parseInt(expiryTime)) {
+            // Token is expired, refresh it
+            const newToken = await refreshToken(refreshToken);
+            return newToken;
+        }
+
+        return accessToken;
+    };
+
     // Check if user logged in 
     useEffect(() => {
         const token = localStorage.getItem('accessToken');
         const urlParams = new URLSearchParams(window.location.search);
         const code = urlParams.get('code');
-    
+
         if (!token && !code) {
             // Redirect to Spotify Login Page only if there's no token and no code
-            window.location.href = `https://accounts.spotify.com/authorize?client_id=957639a18400425fb949acda676fe622&response_type=code&redirect_uri=http://localhost:5174/callback&scope=playlist-modify-private playlist-modify-public`;
+            window.location.href = `https://accounts.spotify.com/authorize?client_id=c2241fa9aede4b82862d5d85188bd33d&response_type=code&redirect_uri=http://localhost:5174/callback&scope=playlist-modify-private playlist-modify-public`;
         } else if (code && !token) {
             // If there's a code but no token, handle the login
             handleLogin(code);
@@ -64,7 +83,7 @@ function App() {
     }, []);
 
     // Handle Spotify callback (extract authorization code)
-    useEffect(() => { 
+    useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
         const code = urlParams.get('code');
         if (code) {
@@ -83,15 +102,19 @@ function App() {
                 },
                 body: JSON.stringify({ code }),
             });
-
+    
             if (!response.ok) {
                 throw new Error('Failed to authenticate');
             }
-
+    
             const data = await response.json();
             localStorage.setItem('accessToken', data.accessToken);
             localStorage.setItem('refreshToken', data.refreshToken);
-
+    
+            // Store the expiry time (current time + expiresIn seconds)
+            const expiryTime = Date.now() + data.expiresIn * 1000;
+            localStorage.setItem('tokenExpiry', expiryTime);
+    
             // Schedule token refresh before it expires
             setTimeout(() => refreshToken(data.refreshToken), (data.expiresIn - 60) * 1000); // Refresh 1 minute before expiry
         } catch (error) {
@@ -100,6 +123,7 @@ function App() {
         }
     };
 
+    
     // Debounced search for artists
     useEffect(() => {
         const delayDebounceFn = setTimeout(async () => {
@@ -162,28 +186,34 @@ function App() {
             }
 
             const data = await response.json();
-            console.log('Login successful. Tokens received:', data);
+            console.log('Tokens refreshed:', data);
             localStorage.setItem('accessToken', data.accessToken);
             localStorage.setItem('refreshToken', data.refreshToken);
 
+            // Store the expiry time (current time + expiresIn seconds)
+            const expiryTime = Date.now() + data.expiresIn * 1000;
+            localStorage.setItem('tokenExpiry', expiryTime);
+
             // Schedule the next refresh
-            setTimeout(() => refreshToken(refreshToken), (data.expiresIn - 60) * 1000); // Refresh 1 minute before expiry
+            setTimeout(() => refreshToken(data.refreshToken), (data.expiresIn - 60) * 1000); // Refresh 1 minute before expiry
+
+            return data.accessToken;
         } catch (error) {
             console.error('Failed to refresh token:', error);
             setError('Failed to refresh token. Please log in again.');
+            throw error;
         }
     };
+
+
     // Handle playlist generation
     const handleSubmit = async () => {
         setLoading(true);
         setError('');
-    
+
         try {
-            const accessToken = localStorage.getItem('accessToken');
-            if (!accessToken) {
-                throw new Error('No access token found. Please log in again.');
-            }
-    
+            const accessToken = await checkAndRefreshToken();
+
             const response = await fetch('http://localhost:3001/create-playlist', {
                 method: 'POST',
                 headers: {
@@ -198,11 +228,11 @@ function App() {
                     selectedArtistName: selectedArtist?.name, // Send the artist
                 }),
             });
-    
+
             if (!response.ok) {
                 throw new Error('Failed to create playlist');
             }
-    
+
             const data = await response.json();
             setPlaylists([{ name: `${mood.value} ${language.value} Playlist`, url: data.playlistUrl }]);
         } catch (error) {
@@ -212,7 +242,8 @@ function App() {
             setLoading(false);
         }
     };
-    
+
+
     return (
         <div className="App">
             <div className="content">
