@@ -16,6 +16,11 @@ import {
     Input,
 } from '@nextui-org/react';
 import './styles/App.css';
+// App.jsx
+import NavbarComponent from './components/Navbar';
+import MoodSelector from './components/MoodSelector';
+import PlaylistDisplay from './components/PlaylistDisplay';
+import './styles/styles.css';
 
 function App() {
     const [mood, setMood] = useState(null);
