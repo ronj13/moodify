@@ -31,10 +31,9 @@ app.post('/login', (req, res) => {
     });
 });
 
-// Endpoint to refresh the access token
 app.post('/refresh', (req, res) => {
     const { refreshToken } = req.body;
-    console.log('Received refresh token:', refreshToken)
+    console.log('Received refresh token:', refreshToken);
 
     spotifyApi.setRefreshToken(refreshToken);
 
@@ -48,6 +47,7 @@ app.post('/refresh', (req, res) => {
         res.status(400).json({ error: 'Failed to refresh token' });
     });
 });
+
 
 // Endpoint to search for an artist
 app.post('/search-artist', async (req, res) => {
