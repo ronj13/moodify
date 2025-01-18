@@ -9,8 +9,8 @@ app.use(cors());
 app.use(express.json());
 
 const spotifyApi = new SpotifyWebApi({
-    clientId: '957639a18400425fb949acda676fe622',
-    clientSecret: '2302f5464c5a41f2933f556aeb2970f7',
+    clientId: '3e3cd8871a024fcd932aa6d7dc39ae08',
+    clientSecret: 'a552da57757a45819aefc7cc1c2fd857',
     redirectUri: 'http://localhost:5174/callback',
 });
 
@@ -31,17 +31,16 @@ app.post('/login', (req, res) => {
     });
 });
 
-// Endpoint to refresh the access token
 app.post('/refresh', (req, res) => {
     const { refreshToken } = req.body;
-    console.log('Received refresh token:', refreshToken)
-
+    
     spotifyApi.setRefreshToken(refreshToken);
 
     spotifyApi.refreshAccessToken().then(data => {
-        console.log('Tokens refreshed:', data.body);
+        // Send both the new access token and refresh token
         res.json({
             accessToken: data.body.access_token,
+            refreshToken: data.body.refresh_token, // Add this
             expiresIn: data.body.expires_in,
         });
     }).catch(err => {
@@ -49,31 +48,53 @@ app.post('/refresh', (req, res) => {
     });
 });
 
+app.post('/search-song', async (req, res) => {
+    const { songQuery, accessToken } = req.body;
+    console.log("Song Query Received:", songQuery);
+
+    try {
+        spotifyApi.setAccessToken(accessToken);
+        const searchResponse = await spotifyApi.searchTracks(songQuery, { limit: 5 });
+
+        const songs = searchResponse.body.tracks.items.map(track => ({
+            id: track.id,
+            name: track.name,
+            artist: track.artists[0]?.name,
+            uri: track.uri,
+        }));
+
+        console.log("Songs Found:", songs);
+        res.json({ songs });
+    } catch (err) {
+        console.error('Error searching for songs:', err);
+        res.status(500).json({ error: 'Failed to search for songs', details: err.message });
+    }
+});
+
+
 // Endpoint to search for an artist
 app.post('/search-artist', async (req, res) => {
     const { artistQuery, accessToken } = req.body;
+    console.log("Artist Query Received:", artistQuery); // Debugging Log
 
     try {
-        // Set the access token for the Spotify API
         spotifyApi.setAccessToken(accessToken);
-
-        // Search for artists using the Spotify API
         const searchResponse = await spotifyApi.searchArtists(artistQuery, { limit: 5 });
 
-        // Extract artist data from the response
         const artists = searchResponse.body.artists.items.map(artist => ({
             id: artist.id,
             name: artist.name,
-            image: artist.images[0]?.url, // Use the first image if available
+            image: artist.images[0]?.url,
         }));
 
-        // Send the artist data back to the frontend
+        console.log("Artists Found:", artists); // Debugging Log
         res.json({ artists });
     } catch (err) {
         console.error('Error searching for artist:', err);
         res.status(500).json({ error: 'Failed to search for artist', details: err.message });
     }
 });
+
 
 // Function to fetch similar artists
 const getSimilarArtists = async (artistId, accessToken) => {
@@ -82,44 +103,55 @@ const getSimilarArtists = async (artistId, accessToken) => {
     return response.body.artists.map(artist => artist.id);
 };
 
-// Endpoint to create a playlist based on filters
 app.post('/create-playlist', async (req, res) => {
-    const { mood, language, numberOfSongs, accessToken, selectedArtistId, selectedArtistName } = req.body;
+    const { mood, numberOfSongs, accessToken, selectedArtistId, selectedArtistName, selectedSongs } = req.body;
     spotifyApi.setAccessToken(accessToken);
 
     try {
-        let tracks = [];
+        console.log("Selected Songs:", selectedSongs);
+        let tracks = [...selectedSongs]; // Always start with user-selected songs
 
-        // Step 1: Fetch all tracks linked to the artist using the search API
         if (selectedArtistId && selectedArtistName) {
-            console.log('Fetching all tracks for selected artist:', selectedArtistName);
-
-            // Search for tracks by the artist's name
-            const searchResponse = await spotifyApi.searchTracks(`artist:${selectedArtistName}`, { limit: 50 }); // Fetch up to 50 tracks per request
+            console.log('Fetching tracks for artist:', selectedArtistName);
+            const searchResponse = await spotifyApi.searchTracks(`artist:${selectedArtistName}`, { limit: 50 });
             const artistTracks = searchResponse.body.tracks.items;
 
-            // Filter tracks to ensure they are by the selected artist
-            const filteredTracks = artistTracks.filter(track =>
-                track.artists.some(artist => artist.id === selectedArtistId)
-            );
+            const filteredTracks = artistTracks
+                .filter(track => track.artists.some(artist => artist.id === selectedArtistId))
+                .map(track => track.uri);
 
-            // Add track URIs to the list
-            tracks.push(...filteredTracks.map(track => track.uri));
-            console.log('Tracks fetched for artist:', tracks.length);
+            console.log('Artist Tracks:', filteredTracks);
+
+            // **Add only new tracks (avoid duplicating selected songs)**
+            filteredTracks.forEach(track => {
+                if (!tracks.includes(track)) {
+                    tracks.push(track);
+                }
+            });
+
+            console.log('Merged Tracks:', tracks);
         }
 
-        // Step 2: Shuffle and limit the number of tracks
-        tracks = shuffleArray(tracks).slice(0, numberOfSongs);
+        // Ensure selected songs are **always included at the beginning** 
+        // and then apply filtering to the rest
+        let prioritizedTracks = [...selectedSongs];
+        let remainingTracks = tracks.filter(track => !selectedSongs.includes(track));
+
+        // Shuffle only the remaining tracks
+        remainingTracks = shuffleArray(remainingTracks).slice(0, numberOfSongs - prioritizedTracks.length);
+
+        // Final tracklist: User-selected songs + shuffled artist songs
+        tracks = [...prioritizedTracks, ...remainingTracks];
+
         console.log('Final tracks to add to playlist:', tracks);
 
-        // Step 3: Create a new playlist
-        const playlistName = `${mood} ${language} Playlist`; // Customize playlist name
+        // Create the playlist
+        const playlistName = `${mood} Playlist`;
         const playlistResponse = await spotifyApi.createPlaylist(playlistName, {
-            description: `A ${mood} ${language} playlist generated by Moodify.`,
-            public: false, // Make the playlist private
+            description: `A ${mood} playlist generated by Moodify.`,
+            public: false,
         });
 
-        // Step 4: Add tracks to the playlist
         const playlistId = playlistResponse.body.id;
         await spotifyApi.addTracksToPlaylist(playlistId, tracks);
 
@@ -131,6 +163,10 @@ app.post('/create-playlist', async (req, res) => {
         res.status(500).json({ error: 'Failed to create playlist', details: err.message });
     }
 });
+
+
+
+
 
 // Helper function to shuffle an array
 function shuffleArray(array) {

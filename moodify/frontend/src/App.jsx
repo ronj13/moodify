@@ -24,8 +24,8 @@ import './styles/styles.css';
 
 function App() {
     const [mood, setMood] = useState(null);
-    const [language, setLanguage] = useState(null);
     const [numberOfSongs, setNumberOfSongs] = useState(null);
+
     const [playlists, setPlaylists] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -37,34 +37,58 @@ function App() {
         { value: 'Energetic', label: 'Energetic' },
     ];
 
-    const languageOptions = [
-        { value: 'English', label: 'English' },
-        { value: 'Mandarin', label: 'Mandarin' },
-        { value: 'Korean', label: 'Korean' },
-        { value: 'Random', label: 'Random' },
-        { value: 'Mix', label: 'Mix' },
-    ];
+
     const [artistQuery, setArtistQuery] = useState('');
     const [artistResults, setArtistResults] = useState([]);
     const [selectedArtist, setSelectedArtist] = useState(null);
 
-    // Check if user logged in 
+    const [songQuery, setSongQuery] = useState('');
+    const [songResults, setSongResults] = useState([]);
+    const [selectedSongs, setSelectedSongs] = useState([]);
+
     useEffect(() => {
-        const token = localStorage.getItem('accessToken');
-        const urlParams = new URLSearchParams(window.location.search);
-        const code = urlParams.get('code');
-    
-        if (!token && !code) {
-            // Redirect to Spotify Login Page only if there's no token and no code
-            window.location.href = `https://accounts.spotify.com/authorize?client_id=957639a18400425fb949acda676fe622&response_type=code&redirect_uri=http://localhost:5174/callback&scope=playlist-modify-private playlist-modify-public`;
-        } else if (code && !token) {
-            // If there's a code but no token, handle the login
-            handleLogin(code);
-        }
-    }, []);
+        const delayDebounceFn = setTimeout(async () => {
+            if (songQuery.trim() === '') {
+                setSongResults([]);
+                return;
+            }
+
+            try {
+                const accessToken = localStorage.getItem('accessToken');
+                if (!accessToken) {
+                    throw new Error('No access token found. Please log in again.');
+                }
+
+                console.log("Searching for song:", songQuery);
+
+                const response = await fetch('http://localhost:3001/search-song', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ songQuery, accessToken }),
+                });
+
+                if (!response.ok) throw new Error('Failed to search for songs');
+
+                const data = await response.json();
+                console.log("Songs received from backend:", data.songs);
+                setSongResults(data.songs);
+            } catch (error) {
+                console.error('Song search error:', error);
+            }
+        }, 300);
+
+        return () => clearTimeout(delayDebounceFn);
+    }, [songQuery]);
+
+    const handleSongSelect = (song) => {
+        setSelectedSongs([...selectedSongs, song]);
+        setSongResults([]); // Hide search results after selection
+        setSongQuery(''); // Clear search input
+    };
+
 
     // Handle Spotify callback (extract authorization code)
-    useEffect(() => { 
+    useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
         const code = urlParams.get('code');
         if (code) {
@@ -100,6 +124,16 @@ function App() {
         }
     };
 
+    const handleApiError = (error) => {
+        if (error.message.includes('The access token expired')) {
+            const refreshToken = localStorage.getItem('refreshToken');
+            if (refreshToken) {
+                return refreshToken(refreshToken);
+            }
+        }
+        throw error;
+    };
+
     // Debounced search for artists
     useEffect(() => {
         const delayDebounceFn = setTimeout(async () => {
@@ -110,19 +144,19 @@ function App() {
 
             try {
                 const accessToken = localStorage.getItem('accessToken');
+                const testToken = "..gq-O3Y8zrqcdfoVRGs970Qp0IIVJQC-z4V5dMxkshnc"
                 if (!accessToken) {
                     throw new Error('No access token found. Please log in again.');
                 }
+
+                console.log("Sending artist search request for:", artistQuery); // Debugging Log
 
                 const response = await fetch('http://localhost:3001/search-artist', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({
-                        artistQuery,
-                        accessToken,
-                    }),
+                    body: JSON.stringify({ artistQuery, accessToken }),
                 });
 
                 if (!response.ok) {
@@ -130,15 +164,17 @@ function App() {
                 }
 
                 const data = await response.json();
+                console.log("Artists received from backend:", data.artists); // Debugging Log
                 setArtistResults(data.artists);
             } catch (error) {
                 console.error('Failed to search for artist:', error);
                 setError(error.message);
             }
-        }, 300); // 300ms debounce delay
+        }, 300);
 
         return () => clearTimeout(delayDebounceFn);
     }, [artistQuery]);
+
     // Handle artist selection
     const handleArtistSelect = (artist) => {
         setSelectedArtist(artist);
@@ -147,14 +183,14 @@ function App() {
     };
 
     // Refresh the access token
-    const refreshToken = async (refreshToken) => {
+    const refreshToken = async (currentRefreshToken) => {
         try {
             const response = await fetch('http://localhost:3001/refresh', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ refreshToken }),
+                body: JSON.stringify({ refreshToken: currentRefreshToken }),
             });
 
             if (!response.ok) {
@@ -162,17 +198,41 @@ function App() {
             }
 
             const data = await response.json();
-            console.log('Login successful. Tokens received:', data);
-            localStorage.setItem('accessToken', data.accessToken);
-            localStorage.setItem('refreshToken', data.refreshToken);
 
-            // Schedule the next refresh
-            setTimeout(() => refreshToken(refreshToken), (data.expiresIn - 60) * 1000); // Refresh 1 minute before expiry
+            // Update both tokens in localStorage
+            localStorage.setItem('accessToken', data.accessToken);
+            if (data.refreshToken) {
+                localStorage.setItem('refreshToken', data.refreshToken);
+            }
+
+            // Schedule next refresh with the new refresh token
+            setTimeout(() => refreshToken(data.refreshToken || currentRefreshToken),
+                (data.expiresIn - 60) * 1000);
         } catch (error) {
             console.error('Failed to refresh token:', error);
             setError('Failed to refresh token. Please log in again.');
+            // Redirect to login or handle error appropriately
         }
     };
+
+    // Add this to your useEffect that checks login status
+    useEffect(() => {
+        const token = localStorage.getItem('accessToken');
+        const refreshToken = localStorage.getItem('refreshToken');
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+
+        if (!token && !code && !refreshToken) {
+            // Redirect to Spotify Login
+            window.location.href = `https://accounts.spotify.com/authorize?client_id=3e3cd8871a024fcd932aa6d7dc39ae08&response_type=code&redirect_uri=http://localhost:5174/callback&scope=playlist-modify-private playlist-modify-public`;
+        } else if (!token && refreshToken) {
+            // Try to refresh the token
+            refreshToken(refreshToken);
+        } else if (code && !token) {
+            handleLogin(code);
+        }
+    }, []);
+
     // Handle playlist generation
     const handleSubmit = async () => {
         setLoading(true);
@@ -180,31 +240,25 @@ function App() {
     
         try {
             const accessToken = localStorage.getItem('accessToken');
-            if (!accessToken) {
-                throw new Error('No access token found. Please log in again.');
-            }
+            if (!accessToken) throw new Error('No access token found. Please log in again.');
     
             const response = await fetch('http://localhost:3001/create-playlist', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    mood: mood.value,
-                    language: language.value,
+                    mood: mood?.value,
                     numberOfSongs,
                     accessToken,
-                    selectedArtistId: selectedArtist?.id, // Send the artist ID
-                    selectedArtistName: selectedArtist?.name, // Send the artist
+                    selectedArtistId: selectedArtist?.id,
+                    selectedArtistName: selectedArtist?.name,
+                    selectedSongs: selectedSongs.map(song => song.uri), // Send only URIs
                 }),
             });
     
-            if (!response.ok) {
-                throw new Error('Failed to create playlist');
-            }
+            if (!response.ok) throw new Error('Failed to create playlist');
     
             const data = await response.json();
-            setPlaylists([{ name: `${mood.value} ${language.value} Playlist`, url: data.playlistUrl }]);
+            setPlaylists([{ name: `${mood.value} Playlist`, url: data.playlistUrl }]);
         } catch (error) {
             console.error('Failed to create playlist:', error);
             setError(error.message);
@@ -213,6 +267,7 @@ function App() {
         }
     };
     
+
     return (
         <div className="App">
             <div className="content">
@@ -227,21 +282,6 @@ function App() {
                             value={mood}
                             onChange={setMood}
                             placeholder="Choose a Mood"
-                            className="react-select-container"
-                            classNamePrefix="react-select"
-                        />
-                    </CardBody>
-                </Card>
-
-                {/* Language Selection */}
-                <Card className="filter-card">
-                    <CardBody>
-                        <h4>Language</h4>
-                        <Select
-                            options={languageOptions}
-                            value={language}
-                            onChange={setLanguage}
-                            placeholder="Choose a Language"
                             className="react-select-container"
                             classNamePrefix="react-select"
                         />
@@ -263,6 +303,49 @@ function App() {
                         />
                     </CardBody>
                 </Card>
+
+                {/* Song Search */}
+                <Card className="filter-card">
+                    <CardBody>
+                        <h4>Search for a Song</h4>
+                        <Input
+                            type="text"
+                            value={songQuery}
+                            onChange={(e) => setSongQuery(e.target.value)}
+                            placeholder="Enter song name"
+                        />
+                        {songResults.length > 0 && (
+                            <Dropdown>
+                                <DropdownTrigger>
+                                    <NextUIButton variant="bordered" color="primary">
+                                        Select Song
+                                    </NextUIButton>
+                                </DropdownTrigger>
+                                <DropdownMenu
+                                    aria-label="Song Selection"
+                                    onAction={(key) => handleSongSelect(songResults[key])}
+                                >
+                                    {songResults.map((song, index) => (
+                                        <DropdownItem key={index}>
+                                            {song.name} - {song.artist}
+                                        </DropdownItem>
+                                    ))}
+                                </DropdownMenu>
+                            </Dropdown>
+                        )}
+                        {selectedSongs.length > 0 && (
+                            <div className="selected-songs">
+                                <h4>Selected Songs:</h4>
+                                <ul>
+                                    {selectedSongs.map((song, index) => (
+                                        <li key={index}>{song.name} - {song.artist}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                    </CardBody>
+                </Card>
+
 
                 Artist Search
                 <Card className="filter-card">
@@ -305,7 +388,7 @@ function App() {
                 <NextUIButton
                     color="primary"
                     onClick={handleSubmit}
-                    disabled={!mood || !language || loading}
+                    disabled={!mood || loading}
                     className="generate-button"
                 >
                     {loading ? 'Generating...' : 'Generate Playlist'}
