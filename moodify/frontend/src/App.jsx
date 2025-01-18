@@ -14,6 +14,8 @@ import {
     Card,
     CardBody,
     Input,
+    Chip,
+    Avatar,
 } from '@nextui-org/react';
 import './styles/App.css';
 // App.jsx
@@ -46,7 +48,7 @@ function App() {
     ];
     const [artistQuery, setArtistQuery] = useState('');
     const [artistResults, setArtistResults] = useState([]);
-    const [selectedArtist, setSelectedArtist] = useState(null);
+    const [selectedArtists, setSelectedArtists] = useState([]);
 
     // Check if user logged in 
     useEffect(() => {
@@ -139,11 +141,19 @@ function App() {
 
         return () => clearTimeout(delayDebounceFn);
     }, [artistQuery]);
+
     // Handle artist selection
     const handleArtistSelect = (artist) => {
-        setSelectedArtist(artist);
-        setArtistQuery(artist.name); // Update the input field with the selected artist's name
+        if (!selectedArtists.some((a) => a.id === artist.id)) {
+            setSelectedArtists([...selectedArtists, artist]);
+        }
+        setArtistQuery(''); // Clear the input field
         setArtistResults([]); // Clear the dropdown
+    };
+
+    // Handle artist removal
+    const handleArtistRemove = (artistId) => {
+        setSelectedArtists(selectedArtists.filter((artist) => artist.id !== artistId));
     };
 
     // Refresh the access token
@@ -177,13 +187,13 @@ function App() {
     const handleSubmit = async () => {
         setLoading(true);
         setError('');
-    
+
         try {
             const accessToken = localStorage.getItem('accessToken');
             if (!accessToken) {
                 throw new Error('No access token found. Please log in again.');
             }
-    
+
             const response = await fetch('http://localhost:3001/create-playlist', {
                 method: 'POST',
                 headers: {
@@ -198,11 +208,11 @@ function App() {
                     selectedArtistName: selectedArtist?.name, // Send the artist
                 }),
             });
-    
+
             if (!response.ok) {
                 throw new Error('Failed to create playlist');
             }
-    
+
             const data = await response.json();
             setPlaylists([{ name: `${mood.value} ${language.value} Playlist`, url: data.playlistUrl }]);
         } catch (error) {
@@ -212,7 +222,7 @@ function App() {
             setLoading(false);
         }
     };
-    
+
     return (
         <div className="App">
             <div className="content">
@@ -287,15 +297,45 @@ function App() {
                                     onAction={(key) => handleArtistSelect(artistResults[key])}
                                 >
                                     {artistResults.map((artist, index) => (
-                                        <DropdownItem key={index}>{artist.name}</DropdownItem>
+                                        <DropdownItem key={index}>
+                                            <div style={{ display: 'flex', alignItems: 'center' }}>
+                                                <Avatar
+                                                    src={artist.image}
+                                                    alt={artist.name}
+                                                    width={40} height={40}
+                                                    size="sm"
+                                                    style={{ marginRight: '8px' }}
+                                                />
+                                                {artist.name}
+                                            </div>
+                                        </DropdownItem>
                                     ))}
                                 </DropdownMenu>
                             </Dropdown>
                         )}
-                        {selectedArtist && (
-                            <div className="selected-artist">
-                                <h4>Selected Artist: {selectedArtist.name}</h4>
-                                <img src={selectedArtist.image} alt={selectedArtist.name} />
+                        {selectedArtists.length > 0 && (
+                            <div className="selected-artists">
+                                <h4>Selected Artists:</h4>
+                                <div className="artist-chips">
+                                    {selectedArtists.map((artist) => (
+                                        <Chip
+                                            key={artist.id}
+                                            onClose={() => handleArtistRemove(artist.id)}
+                                            variant="bordered"
+                                            color="primary"
+                                            avatar={
+                                                <Avatar
+                                                    src={artist.image}
+                                                    alt={artist.name}
+                                                    size="sm" // Use NextUI's size prop
+                                                    className="artist-avatar" // Optional: Add custom class for additional styling
+                                                />
+                                            }
+                                        >
+                                            {artist.name}
+                                        </Chip>
+                                    ))}
+                                </div>
                             </div>
                         )}
                     </CardBody>
